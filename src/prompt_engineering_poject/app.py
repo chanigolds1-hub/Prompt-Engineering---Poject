@@ -30,7 +30,7 @@ def process_request(user_request, service=None):
         if not is_safe:
             return command, f"Command rejected: {message}"
 
-        return command, "Command approved. Not executed."
+        return command, f"{message}. Not executed."
 
     except Exception as error:
         return "", f"Error: {type(error).__name__}: {error}"

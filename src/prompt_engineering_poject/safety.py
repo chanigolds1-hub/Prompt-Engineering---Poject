@@ -1,20 +1,42 @@
 import re
 
 
-SAFE_COMMANDS = {
-    "ipconfig",
-    "tasklist",
-    "hostname",
-    "whoami",
-    "ver",
-    "systeminfo",
-}
+READ_ONLY_PATTERNS = [
+    r"ipconfig(?:\s+/all)?",
+    r"tasklist",
+    r"hostname",
+    r"whoami",
+    r"ver",
+    r"winver",
+    r"systeminfo",
+    r"getmac",
+    # dir / tree with an optional path or wildcard, and sort or display flags
+    r'dir(?:\s+"[^"]+"|\s+[A-Za-z0-9_.:*?\-]+)?(?:\s+/(?:o:?-?[a-z]+|[bsa]))*',
+    r'tree(?:\s+"[^"]+"|\s+[A-Za-z0-9_.:\-]+)?(?:\s+/f)?',
+    # findstr [flags] term [file]
+    r'findstr(?:\s+/[a-z:]+)*\s+(?:"[^"]*"|[^\s"]+)(?:\s+[A-Za-z0-9_.:*\-]+)?',
+]
+
+# Commands that are valid but should get user approval before running:
+# network access and administrative tools.
+RISKY_PATTERNS = [
+    r"ping(?:\s+-[a-z]\s+\d+)?\s+[A-Za-z0-9.-]+",
+    r"fsutil\s+volume\s+diskfree\s+[A-Za-z]:",
+    r"""wmic\s+logicaldisk(?:\s+where\s+"DeviceID='[A-Za-z]:'")?\s+get\s+[A-Za-z, ]+""",
+]
+
+
+def _matches_any(patterns: list[str], command: str) -> bool:
+    return any(
+        re.fullmatch(pattern, command, re.IGNORECASE)
+        for pattern in patterns
+    )
 
 
 def check_command(command: str) -> tuple[bool, str]:
     """
-    Checks whether the generated CMD command
-    belongs to the approved read-only command set.
+    Checks a generated CMD command against the approved command set.
+    Returns whether it is allowed, and a message explaining why.
     """
 
     command = command.strip()
@@ -31,36 +53,26 @@ def check_command(command: str) -> tuple[bool, str]:
     if command in special_responses:
         return False, special_responses[command]
 
-    # Only one command is permitted.
+    # Only one line is permitted.
     if "\n" in command or "\r" in command:
         return False, "Multiple lines are not allowed"
 
-    # Reject command chaining and shell operators.
-    if re.search(r"[&|<>^%!`]", command):
+    # Reject redirection, escaping and variable expansion.
+    if re.search(r"[<>^%!`]", command):
         return False, "Shell operators are not allowed"
 
-    first_word = command.split()[0].lower()
+    # Every part of a chained or piped command must be approved on its own.
+    parts = [part.strip() for part in re.split(r"&&|\|\||&|\|", command)]
 
-    if first_word in SAFE_COMMANDS:
-        if command.lower() == first_word:
-            return True, "Approved read-only command"
+    is_risky = False
 
-    # Allow listing files and sorting by size.
-    if re.fullmatch(
-        r'dir(?:\s+"[A-Za-z0-9 _.-]+(?:\\[A-Za-z0-9 _.-]+)*"|'
-        r'\s+[A-Za-z0-9_.:\\-]+)?(?:\s+/o-s)?',
-        command,
-        re.IGNORECASE,
-    ):
-        return True, "Approved directory listing"
+    for part in parts:
+        if _matches_any(RISKY_PATTERNS, part):
+            is_risky = True
+        elif not _matches_any(READ_ONLY_PATTERNS, part):
+            return False, "Command is not in the approved list"
 
-    # Allow viewing directory structure.
-    if re.fullmatch(
-        r'tree(?:\s+"[A-Za-z0-9 _.-]+(?:\\[A-Za-z0-9 _.-]+)*"|'
-        r'\s+[A-Za-z0-9_.:\\-]+)?(?:\s+/f)?',
-        command,
-        re.IGNORECASE,
-    ):
-        return True, "Approved directory tree"
+    if is_risky:
+        return True, "Requires user approval before running"
 
-    return False, "Command is not in the approved list"
+    return True, "Approved read-only command"

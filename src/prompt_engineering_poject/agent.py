@@ -7,7 +7,7 @@ from .gemini_service import GeminiService
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Location of the prompt file
-PROMPT_PATH = PROJECT_ROOT / "prompts" / "prompt_v1.txt"
+PROMPT_PATH = PROJECT_ROOT / "prompts" / "prompt_v6.txt"
 
 
 def load_prompt() -> str:
