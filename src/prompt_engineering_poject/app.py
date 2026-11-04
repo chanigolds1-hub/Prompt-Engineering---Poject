@@ -28,7 +28,7 @@ def process_request(user_request, service=None):
         is_safe, message = check_command(command)
 
         if not is_safe:
-            return "", f"Command rejected: {message}"
+            return command, f"Command rejected: {message}"
 
         return command, "Command approved. Not executed."
 
