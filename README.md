@@ -31,6 +31,8 @@ uv run prompt-engineering-poject
 
 ## תוצאות
 
+[Google Sheet עם כל התרחישים והציונים, עם גיליון לכל איטרציה](https://docs.google.com/spreadsheets/d/16ZdEhBM8dluLyA0wcT7v4lJ7NxJ5im7AubY3M9ccf3g/edit?usp=sharing)
+
 מספר התרחישים שעברו מתוך 26, בכל מדד:
 
 | גרסה | מה השתנה | פורמט | נכונות | בטיחות | תקין בכל המדדים |
